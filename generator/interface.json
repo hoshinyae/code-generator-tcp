@@ -3,6 +3,18 @@
   "fields": [
     {"name": "device_id", "type": "int"},
     {"name": "temperature", "type": "float"},
-    {"name": "is_active", "type": "bool"}
+    {"name": "is_active", "type": "bool"},
+    {"name": "history", "type": "dict"},
+    {"name": "status_message", "type": "str"},
+    {"name": "tags", "type": "list"},
+    {"name": "battery_level", "type": "int"},
+    {"name": "is_encrypted", "type": "bool"},
+    {"name": "last_updated", "type": "str"},
+    {"name": "location", "type": "dict"},
+    {"name": "firmware_version", "type": "str"},
+    {"name": "signal_strength", "type": "float"},
+    {"name": "error_codes", "type": "list"},
+    {"name": "uptime", "type": "int"},
+    {"name": "maintenance_required", "type": "bool"}
   ]
 }

@@ -1,34 +1,83 @@
+import json
 import struct
 
+
+def _default_for_type(field_type: str):
+    if field_type in {"int", "integer"}:
+        return 0
+    if field_type in {"float", "double"}:
+        return 0.0
+    if field_type in {"bool", "boolean"}:
+        return False
+    if field_type in {"str", "string"}:
+        return ""
+    return {}
+
+
 class {{ class_name }}:
-    def __init__(self, {% for field in fields %}{{ field.name }}{% if not loop.last %}, {% endif %}{% endfor %}):
+    def __init__(self, **values):
         {% for field in fields %}
-        self.{{ field.name }} = {{ field.name }}
+        setattr(self, "{{ field.name }}", values.pop("{{ field.name }}", _default_for_type("{{ field.type }}")))
         {% endfor %}
+        if values:
+            unexpected = ", ".join(values.keys())
+            raise TypeError(f"Unexpected field(s): {unexpected}")
 
     def serialize(self) -> bytes:
-        # Mapowanie typów na formaty biblioteki struct
-        # i = int (4 bajty), f = float (4 bajty), ? = bool (1 bajt)
-        format_str = "!" + "".join([
-            "i" if f["type"] == "int" else "f" if f["type"] == "float" else "?" 
-            for f in {{ fields }}
-        ])
-        return struct.pack(
-            format_str,
-            {% for field in fields %}
-            self.{{ field.name }}{% if not loop.last %},{% endif %}
-            {% endfor %}
-        )
+        packed_parts = []
+        {% for field in fields %}
+        value = getattr(self, "{{ field.name }}")
+        {% if field.type in ["int", "integer"] %}
+        packed_parts.append(struct.pack("!i", value))
+        {% elif field.type in ["float", "double"] %}
+        packed_parts.append(struct.pack("!f", value))
+        {% elif field.type in ["bool", "boolean"] %}
+        packed_parts.append(struct.pack("?", value))
+        {% elif field.type in ["str", "string"] %}
+        payload = value.encode("utf-8")
+        packed_parts.append(struct.pack("!I", len(payload)))
+        packed_parts.append(payload)
+        {% else %}
+        payload = json.dumps(value).encode("utf-8")
+        packed_parts.append(struct.pack("!I", len(payload)))
+        packed_parts.append(payload)
+        {% endif %}
+        {% endfor %}
+        return b"".join(packed_parts)
 
     @classmethod
     def deserialize(cls, data: bytes):
-        format_str = "!" + "".join([
-            "i" if f["type"] == "int" else "f" if f["type"] == "float" else "?" 
-            for f in {{ fields }}
-        ])
-        unpacked = struct.unpack(format_str, data)
-        return cls(
-            {% for field in fields %}
-            unpacked[{{ loop.index0 }}]{% if not loop.last %},{% endif %}
-            {% endfor %}
-        )
+        offset = 0
+        values = {}
+        {% for field in fields %}
+        {% if field.type in ["int", "integer"] %}
+        values["{{ field.name }}"] = struct.unpack_from("!i", data, offset)[0]
+        offset += 4
+        {% elif field.type in ["float", "double"] %}
+        values["{{ field.name }}"] = struct.unpack_from("!f", data, offset)[0]
+        offset += 4
+        {% elif field.type in ["bool", "boolean"] %}
+        values["{{ field.name }}"] = struct.unpack_from("?", data, offset)[0]
+        offset += 1
+        {% elif field.type in ["str", "string"] %}
+        length = struct.unpack_from("!I", data, offset)[0]
+        offset += 4
+        raw_payload = data[offset:offset + length]
+        offset += length
+        values["{{ field.name }}"] = raw_payload.decode("utf-8")
+        {% else %}
+        length = struct.unpack_from("!I", data, offset)[0]
+        offset += 4
+        raw_payload = data[offset:offset + length]
+        offset += length
+        values["{{ field.name }}"] = json.loads(raw_payload.decode("utf-8"))
+        {% endif %}
+        {% endfor %}
+        return cls(**values)
+
+    def __str__(self) -> str:
+        lines = ["Odebrano i zdeserializowano dane:"]
+        {% for field in fields %}
+        lines.append(f"  {{ field.name | replace('_', ' ') | capitalize }}: {getattr(self, '{{ field.name }}')}")
+        {% endfor %}
+        return "\n".join(lines)

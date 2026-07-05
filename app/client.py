@@ -1,5 +1,16 @@
 import socket
+from pathlib import Path
+import sys
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT_DIR))
+
+from app.codec_loader import ensure_generated_codec
+
+ensure_generated_codec()
+
 from generated_codec import DeviceStatus
+
 
 def run_server():
     server_address = ('localhost', 65432)
@@ -12,15 +23,10 @@ def run_server():
         conn, addr = s.accept()
         with conn:
             print(f"Połączono z {addr}")
-            # Nasza struktura (int+float+bool) zajmuje dokładnie 9 bajtów (4+4+1)
-            data = conn.recv(9) 
+            data = conn.recv(4096)
             if data:
-                # Deserializacja surowych bajtów z powrotem do obiektu klasy
                 received_status = DeviceStatus.deserialize(data)
-                print("Odebrano i zdeserializowano dane:")
-                print(f"ID Urządzenia: {received_status.device_id}")
-                print(f"Temperatura: {received_status.temperature}°C")
-                print(f"Aktywny: {received_status.is_active}")
+                print(received_status)
 
 if __name__ == "__main__":
     run_server()

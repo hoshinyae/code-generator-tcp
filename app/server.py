@@ -1,12 +1,30 @@
 import socket
+from pathlib import Path
+import sys
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT_DIR))
+
+from app.codec_loader import ensure_generated_codec
+
+ensure_generated_codec()
+
 from generated_codec import DeviceStatus
 import time
 
+
 def run_client():
     server_address = ('localhost', 65432)
-    
-    # Tworzymy instancję danych i serializujemy ją
-    status = DeviceStatus(device_id=42, temperature=23.5, is_active=True)
+
+    status = DeviceStatus(
+        device_id=42,
+        temperature=23.5,
+        is_active=True,
+        history={"last_seen": "2026-07-05", "errors": 0},
+        status_message="all good",
+        tags=["production", "stable"],
+    )
+
     binary_data = status.serialize()
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
