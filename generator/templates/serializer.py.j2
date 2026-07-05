@@ -1,0 +1,34 @@
+import struct
+
+class {{ class_name }}:
+    def __init__(self, {% for field in fields %}{{ field.name }}{% if not loop.last %}, {% endif %}{% endfor %}):
+        {% for field in fields %}
+        self.{{ field.name }} = {{ field.name }}
+        {% endfor %}
+
+    def serialize(self) -> bytes:
+        # Mapowanie typów na formaty biblioteki struct
+        # i = int (4 bajty), f = float (4 bajty), ? = bool (1 bajt)
+        format_str = "!" + "".join([
+            "i" if f["type"] == "int" else "f" if f["type"] == "float" else "?" 
+            for f in {{ fields }}
+        ])
+        return struct.pack(
+            format_str,
+            {% for field in fields %}
+            self.{{ field.name }}{% if not loop.last %},{% endif %}
+            {% endfor %}
+        )
+
+    @classmethod
+    def deserialize(cls, data: bytes):
+        format_str = "!" + "".join([
+            "i" if f["type"] == "int" else "f" if f["type"] == "float" else "?" 
+            for f in {{ fields }}
+        ])
+        unpacked = struct.unpack(format_str, data)
+        return cls(
+            {% for field in fields %}
+            unpacked[{{ loop.index0 }}]{% if not loop.last %},{% endif %}
+            {% endfor %}
+        )

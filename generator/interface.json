@@ -1,0 +1,8 @@
+{
+  "class_name": "DeviceStatus",
+  "fields": [
+    {"name": "device_id", "type": "int"},
+    {"name": "temperature", "type": "float"},
+    {"name": "is_active", "type": "bool"}
+  ]
+}
